@@ -41,8 +41,9 @@ if not webcam_channel == 'Select Channel':
         st.success(f'{name_person} added Successfully')
 
         if len(os.listdir(f'data/{name_person}')) == 0:
-            face_classifier = cv2.CascadeClassifier(
-                'haarcascade_frontalface_default.xml')
+            # face_classifier = cv2.CascadeClassifier(
+            #     'haarcascade_frontalface_default.xml')
+            face_classifier = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
             cap = cv2.VideoCapture(int(webcam_channel))
             count = 0
             while True:
@@ -86,6 +87,7 @@ if st.sidebar.button('Normalize'):
     detector = MTCNN()
 
     class_list_update = []
+    class_list_dir = os.listdir(path_to_dir)  # 无论如何都先定义它
     if os.path.exists(path_to_save):
         class_list_save = os.listdir(path_to_save)
         class_list_dir = os.listdir(path_to_dir)
@@ -148,13 +150,14 @@ if st.sidebar.button('Train Model'):
 
     # Load ArcFace Model
     model = ArcFace.loadModel()
-    target_size = model.layers[0].input_shape[0][1:3]
+    target_size = model.input_shape[1:3]
+
 
     # Variable for store img Embedding
     x = []
     y = []
 
-    names = os.listdir(path_to_dir)
+    names = [n for n in os.listdir(path_to_dir) if os.path.isdir(os.path.join(path_to_dir, n)) and len(os.listdir(os.path.join(path_to_dir, n))) > 0]
     names = sorted(names)
     class_number = len(names)
 
@@ -215,12 +218,12 @@ if st.sidebar.button('Train Model'):
                                                  save_best_only=True,
                                                  mode='max')
     earlystopping = keras.callbacks.EarlyStopping(monitor='val_accuracy',
-                                                  patience=20)
+                                                  patience=100)
 
     st.success('[INFO] Model Training Started ...')
     # Start training
     history = model.fit(x_train, y_train,
-                        epochs=200,
+                        epochs=800,
                         batch_size=16,
                         validation_data=(x_test, y_test),
                         callbacks=[checkpoint, earlystopping])

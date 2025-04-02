@@ -99,24 +99,29 @@ while True:
                 data = pd.DataFrame([img_embedding], columns=np.arange(512))
 
                 predict = face_rec_model.predict(data)[0]
-                if max(predict) > threshold:
-                    class_id = predict.argmax()
-                    pose_class = label_encoder.classes_[class_id]
-                    color = (0, 255, 0)
+                confidence = max(predict)  # 取出最大置信度
+                class_index = predict.argmax()
+
+                if confidence > threshold:
+                    pose_class = class_names[class_index]
                 else:
-                    pose_class = 'Unkown Person'
-                    color = (0, 0, 255)
-                
-                # Show Result
+                    pose_class = 'Unknown Person'
+
+                # 展示框 + 文字，加入置信度显示
                 cv2.rectangle(
                     img, (xmin, ymin), (xmax, ymax),
-                    color, 2
+                    (0, 255, 0), 2
                 )
                 cv2.putText(
-                    img, f'{pose_class}',
-                    (xmin, ymin-10), cv2.FONT_HERSHEY_PLAIN,
-                    2, (255, 0, 255), 2
+                    img,
+                    f'{pose_class} ({confidence:.2f})',  # 加入置信度显示
+                    (xmin, ymin - 10),
+                    cv2.FONT_HERSHEY_PLAIN,
+                    2,
+                    (255, 0, 255),
+                    2
                 )
+
 
     else:
         print('[INFO] Eyes Not Detected!!')

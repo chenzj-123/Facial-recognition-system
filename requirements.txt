@@ -1,5 +1,6 @@
 deepface>=0.0.75
 scikit-learn>=1.2.0
-streamlit>=1.17.0
+streamlit==1.17.0
 imutils>=0.5.4
 matplotlib>=3.6.3
+altair<5
