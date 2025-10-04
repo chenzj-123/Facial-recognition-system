@@ -1,35 +1,24 @@
-# FaceRecognition-MTCNN-ArcFace
-FaceRecognition with MTCNN using ArcFace
+# 🧠 Face Recognition with MTCNN + ArcFace + Liveness Detection
 
-<p align="center">
-  <img src='https://user-images.githubusercontent.com/88816150/187910639-ae68998b-5377-40b7-8faf-0206d05353ae.gif' alt="animated" />
-</p>
+A complete **Face Recognition System** with integrated **Liveness Detection (Anti-Spoofing)**, designed to identify and verify real human faces while preventing fake ones such as printed photos, videos, or deepfakes.
 
-## 🚀 New Update (27-01-2023)
-- ### Liveness Model:
-  - Liveness detector capable of spotting fake faces and performing anti-face spoofing in face recognition systems
-  - Our FaceRecognition system initially will check the faces are **Fake** or **NOT**
-  - If its a Fake face it will give warnings
-  - Otherwise it will go for Face-Recognition
-
-### Clone this Repository
-```
+### 🧬 Liveness Model
+- Integrated anti-face spoofing detector to prevent fake face attacks.
+- System first checks whether a detected face is **real or fake**.
+- If a fake face is detected → **Warning displayed**.
+- Otherwise, it proceeds to **Face Recognition**.
+---
+## ⚙️ Installation
+### 1️⃣ Clone the Repository
+```bash
 git clone https://github.com/naseemap47/FaceRecognition-MTCNN-ArcFace.git
 cd FaceRecognition-MTCNN-ArcFace
-```
 
+```
 ### Install dependency
 ```
-pip3 install -r requirements.txt
+pip install -r requirements.txt
 ```
-
-# Custom Face Recognition
-You can use:<br>
-- ### Command Line <br>
-- ### Streamlit Dashboard
-
-## Streamlit Dashboard
-⚠️ New version NOT Available, Not updated **Liveness Model**
 ### RUN Streamlit
 ```
 streamlit run app.py
@@ -37,7 +26,6 @@ streamlit run app.py
 
 ## Command Line (Recommended)
 ### 1.Collect Data using Web-cam or RTSP
-
 <details>
   <summary>Args</summary>
   

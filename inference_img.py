@@ -9,7 +9,6 @@ import pandas as pd
 import argparse
 import pickle
 
-
 ap = argparse.ArgumentParser()
 ap.add_argument("-i", "--image", type=str, required=True,
                 help="path to image")
@@ -23,7 +22,6 @@ ap.add_argument("-lm", "--liveness_model", type=str, default='models/liveness.mo
                 help="path to liveness.model")
 ap.add_argument("-le", "--label_encoder", type=str, default='models/le.pickle',
                 help="path to label encoder")
-
 
 args = vars(ap.parse_args())
 path_to_img = args["image"]
@@ -47,11 +45,11 @@ detections = detector.detect_faces(img)
 
 if len(detections) > 0:
     for detect in detections:
-        
+
         bbox = detect['box']
         xmin, ymin, xmax, ymax = int(bbox[0]), int(bbox[1]), \
-                    int(bbox[2]+bbox[0]), int(bbox[3]+bbox[1])
-        
+            int(bbox[2] + bbox[0]), int(bbox[3] + bbox[1])
+
         # Liveness
         img_roi = img[ymin:ymax, xmin:xmax]
         face_resize = cv2.resize(img_roi, (32, 32))
@@ -60,7 +58,7 @@ if len(detections) > 0:
         face_prepro = np.expand_dims(face_array, axis=0)
         preds_liveness = liveness_model.predict(face_prepro)[0]
         decision = np.argmax(preds_liveness)
-        
+
         # Liveness-Decision
         if decision == 0:
             # Show Decision
@@ -70,7 +68,7 @@ if len(detections) > 0:
             )
             cv2.putText(
                 img, 'Fake',
-                (xmin, ymin-10), cv2.FONT_HERSHEY_PLAIN,
+                (xmin, ymin - 10), cv2.FONT_HERSHEY_PLAIN,
                 2, (0, 0, 255), 2
             )
         else:
@@ -82,7 +80,7 @@ if len(detections) > 0:
             # what this line doing? must?
             img_pixels = tf.keras.preprocessing.image.img_to_array(img_resize)
             img_pixels = np.expand_dims(img_pixels, axis=0)
-            img_norm = img_pixels/255  # normalize input in [0, 1]
+            img_norm = img_pixels / 255  # normalize input in [0, 1]
             img_embedding = arcface_model.predict(img_norm)[0]
 
             data = pd.DataFrame([img_embedding], columns=np.arange(512))
@@ -95,7 +93,7 @@ if len(detections) > 0:
             else:
                 pose_class = 'Unkown Person'
                 color = (0, 0, 255)
-            
+
             # Show Result
             cv2.rectangle(
                 img, (xmin, ymin), (xmax, ymax),
@@ -103,7 +101,7 @@ if len(detections) > 0:
             )
             cv2.putText(
                 img, f'{pose_class}',
-                (xmin, ymin-10), cv2.FONT_HERSHEY_PLAIN,
+                (xmin, ymin - 10), cv2.FONT_HERSHEY_PLAIN,
                 2, (255, 0, 255), 2
             )
 

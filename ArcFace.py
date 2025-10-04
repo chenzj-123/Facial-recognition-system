@@ -5,14 +5,9 @@ from tensorflow.python.keras.utils import data_utils
 from tensorflow.python.keras.utils import layer_utils
 from tensorflow.python.lib.io import file_io
 import tensorflow
-
-
 import os
 from pathlib import Path
 import gdown
-
-
-#url = "https://drive.google.com/uc?id=1LVB3CdVejpmGHM28BpqqkbZP5hDEcdZY"
 
 def loadModel(url='https://github.com/serengil/deepface_models/releases/download/v1.0/arcface_weights.h5'):
     base_model = ResNet34()
