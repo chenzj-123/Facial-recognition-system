@@ -14,58 +14,67 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import tensorflow as tf
 from keras.models import load_model
-from keras.layers import Dropout
-from keras.layers import BatchNormalization
+from keras.layers import Dropout, BatchNormalization
 from keras.optimizers import Adam
 
-st.title('Face Recognition System')
+# ============================================================
+# Streamlit Interface — Title & Global Setup
+# ============================================================
+st.title('🧠 Face Recognition System with ArcFace Embeddings')
+
+# Create data directory for captured images
 os.makedirs('data', exist_ok=True)
 name_list = os.listdir('data')
 
-# =========================
-# 1st Stage - Data Collection
-# =========================
+# ============================================================
+# 1️⃣ Data Collection Stage
+# ============================================================
+st.sidebar.header("📸 Data Collection")
 webcam_channel = st.sidebar.selectbox(
     'Webcam Channel:',
     ('Select Channel', '0', '1', '2', '3')
 )
-name_person = st.text_input('Name of the Person:')
-img_number = st.number_input('Number of Images:', 50)
+name_person = st.text_input('Enter the Person\'s Name:')
+img_number = st.number_input('Number of Images to Capture:', min_value=10, value=50)
 FRAME_WINDOW = st.image([])
 
-if not webcam_channel == 'Select Channel':
-    take_img = st.button('Take Images')
-    if take_img:
-        if len(name_list) != 0:
-            for i in name_list:
-                if i == name_person:
-                    st.warning('The Name Already Exists!')
-                    break
-        os.mkdir(f'data/{name_person}')
-        st.success(f'{name_person} added successfully')
+if webcam_channel != 'Select Channel':
+    take_img = st.button('Start Capturing Images')
 
-        if len(os.listdir(f'data/{name_person}')) == 0:
-            face_classifier = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    if take_img:
+        # Prevent duplicate name folders
+        if name_person in name_list:
+            st.warning('⚠️ The name already exists. Please use a different name.')
+        else:
+            os.mkdir(f'data/{name_person}')
+            st.success(f'✅ Directory created for {name_person}')
+
+            face_classifier = cv2.CascadeClassifier(
+                cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+            )
             cap = cv2.VideoCapture(int(webcam_channel))
             count = 0
+
             while True:
                 success, img = cap.read()
                 if not success:
-                    st.error('[INFO] Camera not working!')
+                    st.error('❌ [INFO] Camera not detected!')
                     break
 
-                # Save Image
+                # Save each frame as image
                 cv2.imwrite(f'data/{name_person}/{count}.jpg', img)
-                st.success(f'[INFO] Successfully saved {count}.jpg')
+                st.info(f'[INFO] Saved {count}.jpg')
                 count += 1
 
+                # Draw rectangles around detected faces
                 faces = face_classifier.detectMultiScale(img)
                 for (x, y, w, h) in faces:
-                    cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
+                    cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
                 FRAME_WINDOW.image(img, channels='BGR')
-                if count == img_number:
-                    st.success(f'[INFO] Collected {img_number} Images')
+
+                if count >= img_number:
+                    st.success(f'[INFO] Collected {img_number} images successfully.')
                     break
 
             FRAME_WINDOW.image([])
@@ -73,28 +82,29 @@ if not webcam_channel == 'Select Channel':
             cv2.destroyAllWindows()
 
 else:
-    st.warning('[INFO] Please select a camera channel')
+    st.warning('[INFO] Please select a camera channel to begin.')
 
-# =========================
-# 2nd Stage - Normalize Image Data
-# =========================
-st.sidebar.title('Normalize Image Data')
+# ============================================================
+# 2️⃣ Data Normalization Stage
+# ============================================================
+st.sidebar.header('🧩 Normalize Image Data')
 if st.sidebar.button('Normalize'):
     path_to_dir = "data"
-    path_to_save = 'norm_data'
+    path_to_save = "norm_data"
 
     flag = True
     detector = MTCNN()
 
+    # Check if normalization has already been done
     class_list_update = []
     class_list_dir = os.listdir(path_to_dir)
     if os.path.exists(path_to_save):
         class_list_save = os.listdir(path_to_save)
-        class_list_dir = os.listdir(path_to_dir)
         class_list_update = list(set(class_list_dir) ^ set(class_list_save))
     else:
         os.makedirs(path_to_save)
 
+    # Determine which classes need normalization
     if len(class_list_update) == 0:
         if (set(class_list_dir) == set(class_list_save)):
             flag = False
@@ -103,10 +113,11 @@ if st.sidebar.button('Normalize'):
     else:
         class_list = class_list_update
 
+    # Run normalization if needed
     if flag:
         class_list = sorted(class_list)
         for name in class_list:
-            st.success(f"[INFO] Class '{name}' normalization started")
+            st.info(f"[INFO] Normalizing class '{name}' ...")
             img_list = glob.glob(os.path.join(path_to_dir, name) + '/*')
 
             # Create save folder
@@ -122,72 +133,65 @@ if st.sidebar.button('Normalize'):
                     left_eye = detections[0]['keypoints']['left_eye']
                     bbox = detections[0]['box']
                     norm_img_roi = alignment_procedure(img, left_eye, right_eye, bbox)
-
-                    # Save normalized image
                     cv2.imwrite(f'{save_folder}/{os.path.split(img_path)[1]}', norm_img_roi)
-
                 else:
                     st.warning(f'[INFO] Eyes not detected in {img_path}')
 
-            st.success(f"[INFO] All normalized images from '{name}' saved in '{path_to_save}'")
-        st.success(f'[INFO] Successfully normalized all images from {len(os.listdir(path_to_dir))} classes')
+            st.success(f"[INFO] Normalized images for '{name}' saved in '{path_to_save}'")
+
+        st.success('[INFO] All images normalized successfully.')
 
     else:
         st.warning('[INFO] All data already normalized.')
 
-# =========================
-# 3rd Stage - Train Model
-# =========================
-st.sidebar.title('Train Model')
+# ============================================================
+# 3️⃣ Model Training Stage
+# ============================================================
+st.sidebar.header('⚙️ Train Face Recognition Model')
 if st.sidebar.button('Train Model'):
     path_to_dir = "norm_data"
-    path_to_save = 'model.h5'
+    path_to_save = "model.h5"
 
-    # Load ArcFace model
+    # Load ArcFace model for embedding generation
     model = ArcFace.loadModel()
     target_size = model.input_shape[1:3]
 
-    # Variables for storing image embeddings
-    x = []
-    y = []
-
-    names = [n for n in os.listdir(path_to_dir) if os.path.isdir(os.path.join(path_to_dir, n)) and len(os.listdir(os.path.join(path_to_dir, n))) > 0]
-    names = sorted(names)
+    x, y = [], []
+    names = sorted([
+        n for n in os.listdir(path_to_dir)
+        if os.path.isdir(os.path.join(path_to_dir, n)) and len(os.listdir(os.path.join(path_to_dir, n))) > 0
+    ])
     class_number = len(names)
 
+    # Generate embeddings for each image
     for name in names:
-        img_list = glob.glob(os.path.join(path_to_dir, name) + '/*')
-        img_list = sorted(img_list)
-        st.success(f'[INFO] Started embedding class {name}')
-
+        st.info(f"[INFO] Generating embeddings for class '{name}' ...")
+        img_list = sorted(glob.glob(os.path.join(path_to_dir, name) + '/*'))
         for img_path in img_list:
             img = cv2.imread(img_path)
             img_resize = cv2.resize(img, target_size)
-            # Convert image to tensor
             img_pixels = tf.keras.preprocessing.image.img_to_array(img_resize)
             img_pixels = np.expand_dims(img_pixels, axis=0)
-            img_norm = img_pixels / 255  # normalize to [0, 1]
+            img_norm = img_pixels / 255
             img_embedding = model.predict(img_norm)[0]
-
             x.append(img_embedding)
             y.append(name)
+        st.success(f"[INFO] Completed embeddings for '{name}'")
 
-        st.success(f'[INFO] Completed embedding class {name}')
-    st.success('[INFO] All image data embedding completed')
+    st.success('[INFO] All embeddings generated successfully.')
 
-    # Model training
+    # Prepare training data
     df = pd.DataFrame(x, columns=np.arange(512))
     df['names'] = y
-
     x = df.copy()
     y = x.pop('names')
     y, _ = y.factorize()
     x = x.astype('float64')
     y = keras.utils.to_categorical(y)
 
-    x_train, x_test, y_train, y_test = train_test_split(
-        x, y, test_size=0.2, random_state=0)
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=0)
 
+    # Build recognition classifier
     model = Sequential([
         layers.Dense(1024, activation='relu', input_shape=[512]),
         BatchNormalization(),
@@ -207,26 +211,18 @@ if st.sidebar.button('Train Model'):
         metrics=['accuracy']
     )
 
-    checkpoint_path = path_to_save
     checkpoint = keras.callbacks.ModelCheckpoint(
-        checkpoint_path,
+        path_to_save,
         monitor='val_accuracy',
         verbose=1,
         save_best_only=True,
         mode='max'
     )
-    earlystopping = keras.callbacks.EarlyStopping(
-        monitor='val_accuracy',
-        patience=100
-    )
-    lr_scheduler = keras.callbacks.ReduceLROnPlateau(
-        monitor='val_loss',
-        factor=0.5,
-        patience=10,
-        verbose=1
-    )
+    earlystopping = keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=100)
+    lr_scheduler = keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=10, verbose=1)
 
-    st.success('[INFO] Model training started...')
+    # Start model training
+    st.success('[INFO] Training model ...')
     history = model.fit(
         x_train, y_train,
         epochs=800,
@@ -234,72 +230,57 @@ if st.sidebar.button('Train Model'):
         validation_data=(x_test, y_test),
         callbacks=[checkpoint, earlystopping, lr_scheduler]
     )
+    st.success('[INFO] Training completed successfully!')
 
-    st.success('[INFO] Model training completed')
-    st.success(f'[INFO] Model successfully saved in ./{path_to_save}')
-
-    # Plot training history
-    metric_loss = history.history['loss']
-    metric_val_loss = history.history['val_loss']
-    metric_accuracy = history.history['accuracy']
-    metric_val_accuracy = history.history['val_accuracy']
+    # Save performance plots
+    metric_loss, val_loss = history.history['loss'], history.history['val_loss']
+    acc, val_acc = history.history['accuracy'], history.history['val_accuracy']
     epochs = range(len(metric_loss))
 
-    matplotlib.rcParams['font.sans-serif'] = ['Arial']
-    matplotlib.rcParams['axes.unicode_minus'] = False
-
-    # --- Loss Plot ---
+    # Loss Plot
     plt.figure()
-    plt.plot(epochs, metric_loss, 'blue', label='loss')
-    plt.plot(epochs, metric_val_loss, 'red', label='val_loss')
+    plt.plot(epochs, metric_loss, 'blue', label='Loss')
+    plt.plot(epochs, val_loss, 'red', label='Val Loss')
     plt.title('Model Loss')
     plt.xlabel('Epochs')
-    plt.ylabel('Loss Value')
+    plt.ylabel('Loss')
     plt.legend()
     plt.grid(True)
-
-    if os.path.exists('loss.png'):
-        os.remove('loss.png')
     plt.savefig('loss.png', bbox_inches='tight')
-    st.success('[INFO] Saved loss.png successfully')
+    st.image('loss.png', caption='Training vs Validation Loss')
 
-    # --- Accuracy Plot ---
+    # Accuracy Plot
     plt.figure()
-    plt.plot(epochs, metric_accuracy, 'green', label='accuracy')
-    plt.plot(epochs, metric_val_accuracy, 'orange', label='val_accuracy')
+    plt.plot(epochs, acc, 'green', label='Accuracy')
+    plt.plot(epochs, val_acc, 'orange', label='Val Accuracy')
     plt.title('Model Accuracy')
     plt.xlabel('Epochs')
     plt.ylabel('Accuracy')
     plt.legend()
     plt.grid(True)
-
-    if os.path.exists('accuracy.png'):
-        os.remove('accuracy.png')
     plt.savefig('accuracy.png', bbox_inches='tight')
-    st.success('[INFO] Saved accuracy.png successfully')
+    st.image('accuracy.png', caption='Training vs Validation Accuracy')
 
-# =========================
-# 4th Stage - Inference
-# =========================
-st.sidebar.title('Inference')
-threshold = st.sidebar.slider('Model Confidence:', 0.01, 0.99, 0.6)
+# ============================================================
+# 4️⃣ Inference Stage
+# ============================================================
+st.sidebar.header('🎯 Inference (Real-Time Recognition)')
+threshold = st.sidebar.slider('Confidence Threshold', 0.01, 0.99, 0.6)
 
-if st.sidebar.button('Run/Stop'):
-    class_names = os.listdir('data')
-    class_names = sorted(class_names)
+if st.sidebar.button('Run/Stop Inference'):
+    class_names = sorted(os.listdir('data'))
 
-    if not webcam_channel == 'Select Channel':
-        path_saved_model = "model.h5"
+    if webcam_channel != 'Select Channel':
         cap = cv2.VideoCapture(int(webcam_channel))
         detector = MTCNN()
         arcface_model = ArcFace.loadModel()
         target_size = arcface_model.input_shape[1:3]
-        face_rec_model = load_model(path_saved_model, compile=True)
+        face_rec_model = load_model('model.h5', compile=True)
 
         while True:
             success, img = cap.read()
             if not success:
-                st.warning('[INFO] Camera error!')
+                st.warning('[INFO] Camera not responding.')
                 break
 
             detections = detector.detect_faces(img)
@@ -309,8 +290,8 @@ if st.sidebar.button('Run/Stop'):
                     left_eye = detect['keypoints']['left_eye']
                     bbox = detect['box']
                     xmin, ymin, xmax, ymax = int(bbox[0]), int(bbox[1]), int(bbox[2]+bbox[0]), int(bbox[3]+bbox[1])
-                    norm_img_roi = alignment_procedure(img, left_eye, right_eye, bbox)
 
+                    norm_img_roi = alignment_procedure(img, left_eye, right_eye, bbox)
                     img_resize = cv2.resize(norm_img_roi, target_size)
                     img_pixels = tf.keras.preprocessing.image.img_to_array(img_resize)
                     img_pixels = np.expand_dims(img_pixels, axis=0)
@@ -326,15 +307,15 @@ if st.sidebar.button('Run/Stop'):
                         pose_class = 'Unknown Person'
 
                     cv2.rectangle(img, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
-                    cv2.putText(img, f'{pose_class}', (xmin, ymin-10), cv2.FONT_HERSHEY_PLAIN, 2, (255, 0, 255), 2)
-
+                    cv2.putText(img, f'{pose_class}', (xmin, ymin-10),
+                                cv2.FONT_HERSHEY_PLAIN, 2, (255, 0, 255), 2)
             else:
-                st.warning('[INFO] Eyes not detected!')
+                st.warning('[INFO] No faces detected in this frame.')
 
             FRAME_WINDOW.image(img, channels='BGR')
 
         FRAME_WINDOW.image([])
-        st.success('[INFO] Inference on video stream has ended.')
+        st.success('[INFO] Inference completed.')
 
     else:
-        st.warning('[INFO] Please select a camera channel.')
+        st.warning('[INFO] Please select a camera channel first.')
