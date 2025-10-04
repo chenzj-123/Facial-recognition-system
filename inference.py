@@ -9,60 +9,76 @@ import pandas as pd
 import argparse
 import pickle
 
-
+# =========================
+# Argument Parser
+# =========================
 ap = argparse.ArgumentParser()
 ap.add_argument("-i", "--source", type=str, required=True,
-                help="path to Video or webcam")
+                help="Path to video file or webcam index (e.g., 0 for default webcam)")
 ap.add_argument("-m", "--model", type=str, default='models/model.h5',
-                help="path to saved .h5 model, eg: dir/model.h5")
+                help="Path to trained .h5 face recognition model")
 ap.add_argument("-c", "--conf", type=float, default=0.9,
-                help="min prediction conf (0<conf<1)")
+                help="Minimum prediction confidence threshold (0 < conf < 1)")
 
-# Liveness Model
+# Liveness detection model arguments
 ap.add_argument("-lm", "--liveness_model", type=str, default='models/liveness.model',
-                help="path to liveness.model")
+                help="Path to trained liveness detection model")
 ap.add_argument("-le", "--label_encoder", type=str, default='models/le.pickle',
-                help="path to label encoder")
+                help="Path to label encoder for liveness model")
 
 args = vars(ap.parse_args())
 source = args["source"]
 path_saved_model = args["model"]
 threshold = args["conf"]
 
+# Convert webcam index from string to int if numeric
 if source.isnumeric():
     source = int(source)
 
-# Load saved FaceRecognition Model
+# =========================
+# Load Models
+# =========================
+print("[INFO] Loading models...")
 face_rec_model = load_model(path_saved_model, compile=True)
-
-# Load MTCNN
 detector = MTCNN()
-
-# Load ArcFace Model
 arcface_model = ArcFace.loadModel()
 target_size = arcface_model.layers[0].input_shape[0][1:3]
 
-# Liveness Model
+# Load liveness detection model and label encoder
 liveness_model = tf.keras.models.load_model(args['liveness_model'])
 label_encoder = pickle.loads(open(args["label_encoder"], "rb").read())
 
+# Define class names if available (optional: modify this based on your dataset)
+# Example: class_names = ['Alice', 'Bob', 'Charlie']
+# Otherwise, they must be known in advance.
+try:
+    with open('models/class_names.pkl', 'rb') as f:
+        class_names = pickle.load(f)
+except FileNotFoundError:
+    print("[WARNING] Class names file not found. Defaulting to numeric indices.")
+    class_names = [str(i) for i in range(face_rec_model.output_shape[-1])]
+
+# =========================
+# Start Video Stream
+# =========================
 cap = cv2.VideoCapture(source)
+print("[INFO] Starting video stream... Press 'q' to quit.")
 
 while True:
     success, img = cap.read()
     if not success:
-        print('[INFO] Error with Camera')
+        print('[INFO] Camera error or video stream ended.')
         break
 
     detections = detector.detect_faces(img)
     if len(detections) > 0:
         for detect in detections:
-            
             bbox = detect['box']
-            xmin, ymin, xmax, ymax = int(bbox[0]), int(bbox[1]), \
-                    int(bbox[2]+bbox[0]), int(bbox[3]+bbox[1])
-        
-            # Liveness
+            xmin, ymin, xmax, ymax = int(bbox[0]), int(bbox[1]), int(bbox[2] + bbox[0]), int(bbox[3] + bbox[1])
+
+            # =========================
+            # Liveness Detection
+            # =========================
             img_roi = img[ymin:ymax, xmin:xmax]
             face_resize = cv2.resize(img_roi, (32, 32))
             face_norm = face_resize.astype("float") / 255.0
@@ -70,36 +86,35 @@ while True:
             face_prepro = np.expand_dims(face_array, axis=0)
             preds_liveness = liveness_model.predict(face_prepro)[0]
             decision = np.argmax(preds_liveness)
-            
-            # Liveness-Decision
-            if decision == 0:
-                # Show Decision
-                cv2.rectangle(
-                    img, (xmin, ymin), (xmax, ymax),
-                    (0, 0, 255), 2
-                )
+
+            # =========================
+            # Fake / Real Classification
+            # =========================
+            if decision == 0:  # Fake
+                cv2.rectangle(img, (xmin, ymin), (xmax, ymax), (0, 0, 255), 2)
                 cv2.putText(
                     img, 'Fake',
-                    (xmin, ymin-10), cv2.FONT_HERSHEY_PLAIN,
+                    (xmin, ymin - 10), cv2.FONT_HERSHEY_PLAIN,
                     2, (0, 0, 255), 2
                 )
-                
+
             else:
-                # Real
+                # =========================
+                # Real Face - Perform Recognition
+                # =========================
                 right_eye = detect['keypoints']['right_eye']
                 left_eye = detect['keypoints']['left_eye']
-                
+
                 norm_img_roi = alignment_procedure(img, left_eye, right_eye, bbox)
                 img_resize = cv2.resize(norm_img_roi, target_size)
                 img_pixels = tf.keras.preprocessing.image.img_to_array(img_resize)
                 img_pixels = np.expand_dims(img_pixels, axis=0)
-                img_norm = img_pixels/255  # normalize input in [0, 1]
+                img_norm = img_pixels / 255.0
                 img_embedding = arcface_model.predict(img_norm)[0]
 
                 data = pd.DataFrame([img_embedding], columns=np.arange(512))
-
                 predict = face_rec_model.predict(data)[0]
-                confidence = max(predict)  # 取出最大置信度
+                confidence = max(predict)
                 class_index = predict.argmax()
 
                 if confidence > threshold:
@@ -107,14 +122,11 @@ while True:
                 else:
                     pose_class = 'Unknown Person'
 
-                # 展示框 + 文字，加入置信度显示
-                cv2.rectangle(
-                    img, (xmin, ymin), (xmax, ymax),
-                    (0, 255, 0), 2
-                )
+                # Draw bounding box and label with confidence score
+                cv2.rectangle(img, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
                 cv2.putText(
                     img,
-                    f'{pose_class} ({confidence:.2f})',  # 加入置信度显示
+                    f'{pose_class} ({confidence:.2f})',
                     (xmin, ymin - 10),
                     cv2.FONT_HERSHEY_PLAIN,
                     2,
@@ -122,12 +134,12 @@ while True:
                     2
                 )
 
-
     else:
-        print('[INFO] Eyes Not Detected!!')
+        print('[INFO] No faces detected.')
 
     cv2.imshow('Output Image', img)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         cv2.destroyAllWindows()
         break
-print('[INFO] Inference on Videostream is Ended...')
+
+print('[INFO] Inference on video stream ended.')

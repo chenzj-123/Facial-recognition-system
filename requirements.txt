@@ -4,3 +4,5 @@ streamlit==1.17.0
 imutils>=0.5.4
 matplotlib>=3.6.3
 altair<5
+opencv-python
+

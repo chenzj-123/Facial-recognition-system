@@ -12,6 +12,9 @@ import os
 import pandas as pd
 import tensorflow as tf
 import pickle
+from keras.layers import Dropout
+from keras.layers import BatchNormalization
+from keras.optimizers import Adam
 
 # Argument parser setup
 ap = argparse.ArgumentParser()
@@ -81,7 +84,14 @@ x_train, x_test, y_train, y_test = train_test_split(
 # Neural network model
 model = Sequential([
     layers.Dense(1024, activation='relu', input_shape=[512]),
+    BatchNormalization(),
+    Dropout(0.4),
     layers.Dense(512, activation='relu'),
+    BatchNormalization(),
+    Dropout(0.3),
+    layers.Dense(256, activation='relu'),
+    BatchNormalization(),
+    Dropout(0.2),
     layers.Dense(class_number, activation='softmax')
 ])
 
@@ -89,7 +99,7 @@ model = Sequential([
 print('Model Summary: ', model.summary())
 
 model.compile(
-    optimizer='adam',
+    optimizer=Adam(learning_rate=0.0005),
     loss='categorical_crossentropy',
     metrics=['accuracy']
 )
@@ -105,12 +115,19 @@ checkpoint = keras.callbacks.ModelCheckpoint(
 earlystopping = keras.callbacks.EarlyStopping(
   monitor='val_accuracy', patience=100)
 
+lr_scheduler = keras.callbacks.ReduceLROnPlateau(
+    monitor='val_loss',
+    factor=0.5,
+    patience=10,
+    verbose=1
+)
+
 print('[INFO] Model Training Started ...')
 history = model.fit(x_train, y_train,
                     epochs=args['epochs'],
                     batch_size=args['batch_size'],
                     validation_data=(x_test, y_test),
-                    callbacks=[checkpoint,earlystopping])
+                    callbacks=[checkpoint,earlystopping, lr_scheduler])
 print('[INFO] Model Training Completed')
 print(f'[INFO] Model Successfully Saved in /{checkpoint_path}')
 
@@ -119,23 +136,42 @@ with open(args["le"], "wb") as f:
     f.write(pickle.dumps(le))
 print('[INFO] Successfully Saved models/le.pickle')
 
-# Plot training metrics
+# Plot training metrics separately
+
+# Get training data
 metric_loss = history.history['loss']
 metric_val_loss = history.history['val_loss']
 metric_accuracy = history.history['accuracy']
 metric_val_accuracy = history.history['val_accuracy']
 epochs_range = range(len(metric_loss))
 
+# Plot Loss
+plt.figure()
 plt.plot(epochs_range, metric_loss, 'blue', label='loss')
 plt.plot(epochs_range, metric_val_loss, 'red', label='val_loss')
+plt.title('Model Loss')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.legend()
+plt.grid(True)
+
+if os.path.exists('loss.png'):
+    os.remove('loss.png')
+plt.savefig('loss.png', bbox_inches='tight')
+print('[INFO] Successfully Saved loss.png')
+
+# Plot Accuracy
+plt.figure()
 plt.plot(epochs_range, metric_accuracy, 'green', label='accuracy')
 plt.plot(epochs_range, metric_val_accuracy, 'orange', label='val_accuracy')
-
-plt.title('Model Metrics')
+plt.title('Model Accuracy')
+plt.xlabel('Epoch')
+plt.ylabel('Accuracy')
 plt.legend()
+plt.grid(True)
 
-if os.path.exists('metrics.png'):
-    os.remove('metrics.png')
-plt.savefig('metrics.png', bbox_inches='tight')
-print('[INFO] Successfully Saved metrics.png')
-print(f"[INFO] Training finished at epoch: {history.epoch[-1] + 1}")
+if os.path.exists('accuracy.png'):
+    os.remove('accuracy.png')
+plt.savefig('accuracy.png', bbox_inches='tight')
+print('[INFO] Successfully Saved accuracy.png')
+
