@@ -11,8 +11,8 @@ A complete **Face Recognition System** with integrated **Liveness Detection (Ant
 ## ⚙️ Installation
 ### 1️⃣ Clone the Repository
 ```bash
-git clone https://github.com/naseemap47/FaceRecognition-MTCNN-ArcFace.git
-cd FaceRecognition-MTCNN-ArcFace
+git clone https://github.com/chenzj-123/Facial-recognition-system.git
+cd Facial-recognition-system
 
 ```
 ### Install dependency
