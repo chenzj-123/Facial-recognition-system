@@ -139,7 +139,7 @@ checkpoint = keras.callbacks.ModelCheckpoint(
 
 earlystopping = keras.callbacks.EarlyStopping(
     monitor='val_accuracy',
-    patience=100
+    patience=200
 )
 
 lr_scheduler = keras.callbacks.ReduceLROnPlateau(

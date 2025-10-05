@@ -65,7 +65,7 @@ aug = tf.keras.preprocessing.image.ImageDataGenerator(
 
 # Compile model
 print("[INFO] compiling model...")
-opt = tf.keras.optimizers.Adam(learning_rate=INIT_LR)  # 修改在这里！✅
+opt = tf.keras.optimizers.Adam(learning_rate=INIT_LR)  #
 model = LivenessNet.build(width=32, height=32, depth=3,
     classes=len(le.classes_))
 model.compile(loss="binary_crossentropy", optimizer=opt,

@@ -218,7 +218,7 @@ if st.sidebar.button('Train Model'):
         save_best_only=True,
         mode='max'
     )
-    earlystopping = keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=100)
+    earlystopping = keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=200)
     lr_scheduler = keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=10, verbose=1)
 
     # Start model training

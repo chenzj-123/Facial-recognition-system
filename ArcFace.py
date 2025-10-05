@@ -91,7 +91,6 @@ def block1(x, filters, kernel_size=3, stride=1, conv_shortcut=True, name=None):
         Output tensor after applying the residual block.
     """
     bn_axis = 3  # Channel axis for BatchNorm (NHWC format)
-
     # ----- Shortcut branch -----
     if conv_shortcut:
         shortcut = tensorflow.keras.layers.Conv2D(
