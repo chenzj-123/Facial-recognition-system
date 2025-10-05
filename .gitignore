@@ -134,6 +134,6 @@ Norm/
 Liveness/data
 
 # Models
-
+*.h5
 # Label Encoder
 *.pickle
